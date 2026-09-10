@@ -16,6 +16,12 @@ public class CandidateExperience {
     @Column(name = "duration_months") private Integer durationMonths;
     @Column(columnDefinition = "text") private String description;
     protected CandidateExperience() {}
+    public CandidateExperience(UUID id, CandidateProfile profile, String jobTitle, String company,
+                               LocalDate startDate, LocalDate endDate, Integer durationMonths, String description) {
+        this.id = id; this.profile = profile; this.jobTitle = jobTitle; this.company = company;
+        this.startDate = startDate; this.endDate = endDate; this.durationMonths = durationMonths;
+        this.description = description;
+    }
     public UUID getId() { return id; }
     public String getJobTitle() { return jobTitle; }
     public String getCompany() { return company; }

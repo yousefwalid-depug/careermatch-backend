@@ -13,6 +13,11 @@ public class CandidateEducation {
     private String institution;
     @Column(name = "education_level") private String educationLevel;
     protected CandidateEducation() {}
+    public CandidateEducation(UUID id, CandidateProfile profile, String degree, String fieldOfStudy,
+                              String institution, String educationLevel) {
+        this.id = id; this.profile = profile; this.degree = degree; this.fieldOfStudy = fieldOfStudy;
+        this.institution = institution; this.educationLevel = educationLevel;
+    }
     public UUID getId() { return id; }
     public String getDegree() { return degree; }
     public String getFieldOfStudy() { return fieldOfStudy; }

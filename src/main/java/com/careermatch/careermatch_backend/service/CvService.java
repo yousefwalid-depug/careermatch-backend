@@ -27,15 +27,23 @@ public class CvService {
     private final SkillRepository skills;
     private final SkillAliasRepository aliases;
     private final CandidateProfileSkillRepository profileSkills;
+    private final CandidateExperienceRepository experiences;
+    private final CandidateEducationRepository education;
+    private final CandidateProjectRepository projects;
+    private final CandidateProjectSkillRepository projectSkills;
     private final CandidateProfileExtractionService extractor;
 
     public CvService(@Value("${careermatch.upload-directory}") String uploadDirectory, UserRepository users,
                      CvRepository cvs, CandidateProfileRepository profiles, SkillRepository skills,
                      SkillAliasRepository aliases, CandidateProfileSkillRepository profileSkills,
+                     CandidateExperienceRepository experiences, CandidateEducationRepository education,
+                     CandidateProjectRepository projects, CandidateProjectSkillRepository projectSkills,
                      CandidateProfileExtractionService extractor) {
         this.uploadDirectory = Paths.get(uploadDirectory).toAbsolutePath().normalize();
         this.users = users; this.cvs = cvs; this.profiles = profiles; this.skills = skills;
-        this.aliases = aliases; this.profileSkills = profileSkills; this.extractor = extractor;
+        this.aliases = aliases; this.profileSkills = profileSkills; this.experiences = experiences;
+        this.education = education; this.projects = projects; this.projectSkills = projectSkills;
+        this.extractor = extractor;
     }
 
     @Transactional
@@ -60,13 +68,35 @@ public class CvService {
                 extracted.totalExperienceMonths(), extracted.confidence(), now));
         Set<UUID> seen = new HashSet<>();
         extracted.detectedSkillTerms().forEach(term -> {
-            Skill skill = terms.get(term);
+            Skill skill = resolveSkill(terms, term);
             if (skill != null && seen.add(skill.getId()))
-                profileSkills.save(new CandidateProfileSkill(UUID.randomUUID(), profile, skill, term));
+                profileSkills.save(new CandidateProfileSkill(UUID.randomUUID(), profile, skill,
+                        extracted.evidenceFor(term)));
+        });
+        extracted.experiences().forEach(item -> experiences.save(new CandidateExperience(UUID.randomUUID(), profile,
+                item.jobTitle(), item.company(), item.startDate(), item.endDate(), item.durationMonths(), item.evidence())));
+        extracted.education().forEach(item -> education.save(new CandidateEducation(UUID.randomUUID(), profile,
+                item.degree(), item.fieldOfStudy(), item.institution(), item.educationLevel())));
+        extracted.projects().forEach(item -> {
+            CandidateProject project = projects.save(new CandidateProject(UUID.randomUUID(), profile,
+                    item.title(), item.evidence()));
+            Set<UUID> projectSkillIds = new HashSet<>();
+            item.skillTerms().forEach(term -> {
+                Skill skill = resolveSkill(terms, term);
+                if (skill != null && projectSkillIds.add(skill.getId()))
+                    projectSkills.save(new CandidateProjectSkill(UUID.randomUUID(), project, skill, item.evidence()));
+            });
         });
         cv.markProfileReady();
         cvs.save(cv);
         return new CvUploadResponse(cv.getId(), cv.getOriginalFilename(), true);
+    }
+
+    private Skill resolveSkill(Map<String, Skill> terms, String extractedTerm) {
+        Skill exact = terms.get(extractedTerm);
+        if (exact != null) return exact;
+        return terms.entrySet().stream().filter(entry -> entry.getKey().equalsIgnoreCase(extractedTerm))
+                .map(Map.Entry::getValue).findFirst().orElse(null);
     }
 
     private void validate(MultipartFile file) {

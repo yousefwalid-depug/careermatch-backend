@@ -11,6 +11,9 @@ public class CandidateProjectSkill {
     @ManyToOne(fetch = FetchType.LAZY, optional = false) @JoinColumn(name = "skill_id") private Skill skill;
     @Column(columnDefinition = "text") private String evidence;
     protected CandidateProjectSkill() {}
+    public CandidateProjectSkill(UUID id, CandidateProject project, Skill skill, String evidence) {
+        this.id = id; this.project = project; this.skill = skill; this.evidence = evidence;
+    }
     public CandidateProject getProject() { return project; }
     public Skill getSkill() { return skill; }
 }

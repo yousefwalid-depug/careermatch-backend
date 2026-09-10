@@ -34,4 +34,5 @@ build/
 
 # Local uploads and environment files
 uploads/
-.env
+.env*
+!.env.example

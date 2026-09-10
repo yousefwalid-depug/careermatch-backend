@@ -35,7 +35,15 @@ Spring Boot reads environment variables directly. A generic `.env` file is not l
 | `CV_UPLOAD_DIRECTORY` | No | `uploads/cvs` |
 | `ADZUNA_APP_ID` | No | Reserved for a future Adzuna adapter |
 | `ADZUNA_APP_KEY` | No | Reserved for a future Adzuna adapter |
-| `OPENAI_API_KEY` | No | Reserved for future AI adapters |
+| `CAREERMATCH_ALLOWED_ORIGINS` | No | Comma-separated Angular origins; defaults to `http://localhost:4200` |
+| `CAREERMATCH_AI_PROVIDER` | No | `auto` (default), `openai`, or `fallback` |
+| `OPENAI_API_KEY` | No | Activates the real candidate-profile extractor when the provider is `auto` or `openai` |
+| `OPENAI_BASE_URL` | No | `https://api.openai.com/v1` |
+| `OPENAI_MODEL` | No | `gpt-4.1-mini` |
+| `OPENAI_TEMPERATURE` | No | `0` for low-variance structured extraction |
+| `OPENAI_MAX_OUTPUT_TOKENS` | No | `2500` |
+| `OPENAI_TIMEOUT_SECONDS` | No | `12` |
+| `OPENAI_MAX_INPUT_CHARACTERS` | No | `60000` |
 
 PowerShell setup for the current terminal:
 
@@ -43,6 +51,9 @@ PowerShell setup for the current terminal:
 $env:DB_URL = "jdbc:postgresql://localhost:5432/careermatch"
 $env:DB_USERNAME = "postgres"
 $env:DB_PASSWORD = "your-local-password"
+$env:CAREERMATCH_ALLOWED_ORIGINS = "http://localhost:4200"
+# Optional: enable the real candidate-profile extractor.
+$env:OPENAI_API_KEY = "your-api-key"
 ```
 
 ## Run and test
@@ -96,14 +107,16 @@ Flyway seeds one demo user, 10 canonical skills, aliases, three fictional local 
 
 ## Current adapters and limitations
 
-- `MockCandidateProfileExtractionService` deterministically detects known skill names/aliases and a simple explicit “N years” phrase. It is a transparent Day 3 stub and reports low confidence.
+- `OpenAiCandidateProfileExtractionService` uses the OpenAI Responses API with a strict JSON schema. It validates known skills, evidence grounding, dates, sizes, and supported enum values before persistence. Provider calls are retried once; invalid output, timeouts, network failures, or missing configuration fall back safely without exposing provider details.
+- `ResilientCandidateProfileExtractionService` selects OpenAI when `OPENAI_API_KEY` is present and the provider is `auto` or `openai`. `CAREERMATCH_AI_PROVIDER=fallback` explicitly selects the deterministic implementation.
+- `MockCandidateProfileExtractionService` remains the transparent fallback. It detects known skill strings and a simple explicit “N years” phrase, and reports low confidence.
 - `MockJobRequirementExtractionService` is a future boundary. Seed job requirements are already structured and persisted.
 - `UnavailableSemanticSimilarityService` returns no value because no embedding service is configured. It never invents partial similarity.
 - `MockImprovementWordingService` creates deterministic action wording. Expected score gains still come from the scoring engine.
 - No live Adzuna call is made yet. `JobProvider` isolates the current persisted local provider so a remote adapter can be added without changing controllers.
 - Authentication and Spring Security are intentionally absent.
 
-## Verified on 2026-09-10
+## Day 4 verification on 2026-09-10
 
 - Connected to local PostgreSQL 18.6 database `careermatch`.
 - Flyway applied and revalidated migrations 1 through 3.
@@ -112,6 +125,8 @@ Flyway seeds one demo user, 10 canonical skills, aliases, three fictional local 
 - Verified health, local job search, PDF upload, profile read, analysis, and persisted match read over HTTP.
 - Verified 404 unknown-job, 400 invalid-match, and 400 invalid-file responses.
 - Verified a gap analysis persisted match skill rows and two improvement recommendations.
-- The verification instance used port 8081 because another local process already occupied port 8080 and returned 404. The application default remains 8080.
+- Added centralized configurable CORS, including accepted and rejected preflight tests; no wildcard origin is used.
+- The complete backend suite passes: 31 tests, 0 failures, 0 errors, 0 skipped.
+- Live OpenAI extraction quality evaluation remains blocked until `OPENAI_API_KEY` is supplied. The adapter, validation, retry, fallback, and six synthetic evaluation fixtures are complete.
 
-See [Day 4 handoff](docs/DAY4_HANDOFF.md) for the next implementation work.
+The Angular client lives in the sibling `careermatch-frontend` directory. See [Day 4 progress](docs/DAY4_PROGRESS.md), [AI evaluation](docs/AI_EVALUATION_DAY4.md), and [Day 5 handoff](docs/DAY5_HANDOFF.md).

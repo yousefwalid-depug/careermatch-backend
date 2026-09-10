@@ -32,4 +32,16 @@ class JobControllerTest {
         mvc.perform(get("/api/jobs/{id}", id)).andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Job not found: " + id));
     }
+
+    @Test void serviceFailureReturnsUserFriendly503Response() throws Exception {
+        when(service.list(null, null, 1)).thenThrow(
+                new ExternalServiceException("Job search is temporarily unavailable. Please try again later."));
+
+        mvc.perform(get("/api/jobs"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.error").value("Service Unavailable"))
+                .andExpect(jsonPath("$.message")
+                        .value("Job search is temporarily unavailable. Please try again later."))
+                .andExpect(jsonPath("$.path").value("/api/jobs"));
+    }
 }
